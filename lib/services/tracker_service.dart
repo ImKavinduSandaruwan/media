@@ -1,8 +1,8 @@
 import 'dart:convert';
+import 'package:app/api.dart';
 import 'package:http/http.dart' as http;
 
 class TrackerService {
-  static const String baseUrl = 'http://10.198.89.223:8080';
 
   Future<bool> saveExtraDose({
     required int patientId,
@@ -13,7 +13,7 @@ class TrackerService {
     String? reason,
   }) async {
     try {
-      final url = '$baseUrl/tracker/extra-dose';
+      final url = '$baseURL/tracker/extra-dose';
 
       final payload = {
         'patientId': patientId,
@@ -50,7 +50,7 @@ class TrackerService {
     double? weight,
   }) async {
     try {
-      final url = '$baseUrl/tracker/vitamin-k';
+      final url = '$baseURL/tracker/vitamin-k';
 
       final payload = {
         'patientId': patientId,
@@ -87,7 +87,7 @@ class TrackerService {
     String? doseAndFreq,
   }) async {
     try {
-      final url = '$baseUrl/tracker/extra-medication';
+      final url = '$baseURL/tracker/extra-medication';
 
       final payload = {
         'patientId': patientId,
@@ -124,7 +124,7 @@ class TrackerService {
     String? sList,
   }) async {
     try {
-      final url = '$baseUrl/tracker/symptoms';
+      final url = '$baseURL/tracker/symptoms';
 
       final payload = {
         'patientId': patientId,
@@ -157,7 +157,7 @@ class TrackerService {
     required double inr,
   }) async {
     try {
-      final url = '$baseUrl/inr/dose';
+      final url = '$baseURL/inr/dose';
 
       // final payload = {'patientId': patientId, 'inr': inr};
       final payload = {'patientId': 1, 'inr': inr};
@@ -191,7 +191,7 @@ class TrackerService {
   }) async {
     try {
       final url =
-          '$baseUrl/tracker/behavior-analysis?patientId=$patientId&date=$date&inrStatus=$inrStatus';
+          '$baseURL/tracker/behavior-analysis?patientId=$patientId&date=$date&inrStatus=$inrStatus';
 
       print('Getting behavior analysis: $url');
 
@@ -220,7 +220,7 @@ class TrackerService {
   }) async {
     try {
       final url =
-          '$baseUrl/inr/range?patientId=$patientId&startDate=$startDate&endDate=$endDate';
+          '$baseURL/inr/range?patientId=$patientId&startDate=$startDate&endDate=$endDate';
 
       print('Getting INR range: $url');
 
@@ -246,7 +246,7 @@ class TrackerService {
     required int patientId,
   }) async {
     try {
-      final url = '$baseUrl/tracker/overall/$patientId';
+      final url = '$baseURL/tracker/overall/$patientId';
 
       print('Getting overall insights: $url');
 
@@ -272,7 +272,7 @@ class TrackerService {
     required int patientId,
   }) async {
     try {
-      final url = '$baseUrl/tracker/patient/$patientId';
+      final url = '$baseURL/tracker/patient/$patientId';
 
       print('Getting patient tracking data: $url');
 

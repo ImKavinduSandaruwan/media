@@ -1,3 +1,4 @@
+import 'package:app/api.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -162,7 +163,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       // Make the PUT request
       final response = await http.put(
-        Uri.parse('http://10.198.89.223:8080/api/patient/$userId'),
+        Uri.parse('$baseURL/api/patient/$userId'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(payload),
       );

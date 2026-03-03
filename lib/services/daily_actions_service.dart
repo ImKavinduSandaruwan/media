@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:app/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
@@ -58,7 +59,6 @@ class DailyActionsResponse {
 }
 
 class DailyActionsService {
-  static const String baseUrl = 'http://10.198.89.223:8080';
 
   // Get daily actions status from backend
   Future<DailyActionsResponse> getDailyActions({
@@ -66,7 +66,7 @@ class DailyActionsService {
     required String date,
   }) async {
     try {
-      final url = '$baseUrl/daily-action/$patientId/$date';
+      final url = '$baseURL/daily-action/$patientId/$date';
 
       print('Getting daily actions: $url');
 
@@ -95,7 +95,7 @@ class DailyActionsService {
     required ActionType actionType,
   }) async {
     try {
-      final url = '$baseUrl/daily-action/update';
+      final url = '$baseURL/daily-action/update';
 
       final payload = {
         'patientId': patientId,

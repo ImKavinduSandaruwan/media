@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:app/api.dart';
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:http/http.dart' as http;
@@ -16,8 +17,6 @@ class _MonthlyAnalysisScreenState extends State<MonthlyAnalysisScreen> {
   bool _isLoading = true;
   String? _error;
   Map<String, dynamic>? _weeklyData;
-
-  static const String _baseUrl = 'http://10.198.89.223:8080';
 
   @override
   void initState() {
@@ -41,7 +40,7 @@ class _MonthlyAnalysisScreenState extends State<MonthlyAnalysisScreen> {
       }
 
       final response = await http
-          .get(Uri.parse('$_baseUrl/health-factor/weekly/$userId'))
+          .get(Uri.parse('$baseURL/health-factor/weekly/$userId'))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {

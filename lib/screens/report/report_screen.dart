@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:app/api.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../../services/user_preferences.dart';
@@ -15,7 +16,7 @@ class _ReportScreenState extends State<ReportScreen> {
   String? _error;
   List<Map<String, dynamic>> _reports = [];
 
-  static const String _baseUrl = 'http://10.198.89.223:8080';
+  //static const String _baseUrl = '$baseURL';
 
   @override
   void initState() {
@@ -42,7 +43,7 @@ class _ReportScreenState extends State<ReportScreen> {
         return;
       }
 
-      final url = '$_baseUrl/inr/id/$userId';
+      final url = '$baseURL/inr/id/$userId';
       print('🌐 [ReportScreen] Calling: GET $url');
 
       final response = await http

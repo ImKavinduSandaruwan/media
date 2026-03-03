@@ -1,8 +1,8 @@
 import 'dart:convert';
+import 'package:app/api.dart';
 import 'package:http/http.dart' as http;
 
 class AuthService {
-  static const String baseUrl = 'http://10.198.89.223:8080';
 
   Future<LoginResponse> login(String email, String password) async {
     try {
@@ -15,11 +15,11 @@ class AuthService {
 
       final requestBody = {'email': email, 'password': passwordValue};
 
-      print('Request URL: $baseUrl/auth/login');
+      print('Request URL: $baseURL/auth/login');
       print('Request Body: $requestBody');
 
       final response = await http.post(
-        Uri.parse('$baseUrl/auth/login'),
+        Uri.parse('$baseURL/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode(requestBody),
       );

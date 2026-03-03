@@ -1,14 +1,14 @@
 import 'dart:convert';
+import 'package:app/api.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 
 class DailyActionService {
-  static const String baseUrl = 'http://10.198.89.223:8080';
 
   Future<void> performDailyAction(int userId) async {
     try {
       final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
-      final url = '$baseUrl/daily-action/$userId/$today';
+      final url = '$baseURL/daily-action/$userId/$today';
       //final url = '$baseUrl/daily-action/1/$today';
 
       print('Calling daily action: $url');

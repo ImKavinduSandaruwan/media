@@ -1,8 +1,9 @@
 import 'dart:convert';
+import 'package:app/api.dart';
 import 'package:http/http.dart' as http;
 
 class HealthFactorService {
-  static const String baseUrl = 'http://10.198.89.223:8080/health-factor';
+  static const String baseUrl = 'http://$baseURL/health-factor';
 
   /// Initialize health factor session
   /// POST: /health-factor/initialize/{userId}

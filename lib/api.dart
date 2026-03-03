@@ -1,0 +1,1 @@
+const baseURL = 'http://65.2.83.110:5173';
