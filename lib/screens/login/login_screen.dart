@@ -45,12 +45,12 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       // Call login API
-      // final response = await _authService.login(
-      //   _emailController.text.trim(),
-      //   _passwordController.text,
-      // );
+      final response = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
 
-      final response = await _authService.login("leda1@gmail.com", "1234");
+      //final response = await _authService.login("leda1@gmail.com", "1234");
 
       if (!mounted) return;
 
