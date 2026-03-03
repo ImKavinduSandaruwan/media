@@ -38,7 +38,6 @@ class _HomeScreenState extends State<HomeScreen> {
         final parts = savedTime.split(':');
         if (parts.length >= 2) {
           final hour = int.parse(parts[0]);
-          final minute = int.parse(parts[1]);
 
           // Set warfarin time
           _warfarinTime = '${parts[0]}:${parts[1]}';
@@ -130,6 +129,44 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  // Computed adherence based on today's completed actions
+  double get _complianceRate {
+    final completed = [
+      _isStopFoodCompleted,
+      _isTakeWarfarinCompleted,
+      _isConfirmDoseCompleted,
+      _isStartFoodCompleted,
+    ].where((v) => v).length;
+    return completed / 4.0;
+  }
+
+  String get _adherenceLabel {
+    final pct = _complianceRate;
+    if (pct == 1.0) return 'Excellent';
+    if (pct >= 0.75) return 'Good';
+    if (pct >= 0.5) return 'Fair';
+    if (pct > 0) return 'Started';
+    return 'Pending';
+  }
+
+  Color get _adherenceLabelColor {
+    final pct = _complianceRate;
+    if (pct == 1.0) return const Color(0xFF059669);
+    if (pct >= 0.75) return const Color(0xFF2B7EF8);
+    if (pct >= 0.5) return const Color(0xFFF59E0B);
+    if (pct > 0) return const Color(0xFFF59E0B);
+    return const Color(0xFF6B7280);
+  }
+
+  Color get _adherenceLabelBgColor {
+    final pct = _complianceRate;
+    if (pct == 1.0) return const Color(0xFFD1FAE5);
+    if (pct >= 0.75) return const Color(0xFFDBEAFE);
+    if (pct >= 0.5) return const Color(0xFFFEF3C7);
+    if (pct > 0) return const Color(0xFFFEF3C7);
+    return const Color(0xFFF3F4F6);
   }
 
   void _showMessage(String message) {
@@ -257,13 +294,13 @@ class _HomeScreenState extends State<HomeScreen> {
                               vertical: 6,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFD1FAE5),
+                              color: _adherenceLabelBgColor,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              'Excellent',
+                            child: Text(
+                              _adherenceLabel,
                               style: TextStyle(
-                                color: Color(0xFF059669),
+                                color: _adherenceLabelColor,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -282,9 +319,9 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Color(0xFF6B7280),
                             ),
                           ),
-                          const Text(
-                            '95%',
-                            style: TextStyle(
+                          Text(
+                            '${(_complianceRate * 100).toInt()}%',
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                               color: Color(0xFF1A3B5D),
@@ -296,10 +333,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       ClipRRect(
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
-                          value: 0.95,
+                          value: _complianceRate,
                           backgroundColor: const Color(0xFFE5E7EB),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            Color(0xFF1A3B5D),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            _adherenceLabelColor,
                           ),
                           minHeight: 8,
                         ),
