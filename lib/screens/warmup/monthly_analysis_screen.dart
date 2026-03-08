@@ -17,11 +17,14 @@ class _MonthlyAnalysisScreenState extends State<MonthlyAnalysisScreen> {
   bool _isLoading = true;
   String? _error;
   Map<String, dynamic>? _weeklyData;
+  Map<String, dynamic>? _monthlyData;
+  bool _isLoadingMonthly = true;
 
   @override
   void initState() {
     super.initState();
     _fetchWeeklyData();
+    _fetchMonthlyData();
   }
 
   Future<void> _fetchWeeklyData() async {
@@ -76,6 +79,135 @@ class _MonthlyAnalysisScreenState extends State<MonthlyAnalysisScreen> {
       (_weeklyData?['avgAfterHr'] as num?)?.toDouble() ?? 0.0;
   double get _avgRun => (_weeklyData?['avgRun'] as num?)?.toDouble() ?? 0.0;
   String get _period => (_weeklyData?['period'] as String?) ?? '--';
+
+  // Monthly analysis label getters
+  String get _spo2Label {
+    final spo2 = _monthlyData?['spo2'];
+    if (spo2 == null) return 'okay';
+    return ((spo2 as Map<String, dynamic>)['label'] as String?)
+            ?.toLowerCase() ??
+        'okay';
+  }
+
+  String get _hrLabel {
+    final hr = _monthlyData?['heartRate'];
+    if (hr == null) return 'okay';
+    return ((hr as Map<String, dynamic>)['label'] as String?)?.toLowerCase() ??
+        'okay';
+  }
+
+  Future<void> _fetchMonthlyData() async {
+    if (mounted) setState(() => _isLoadingMonthly = true);
+    try {
+      final userId = await UserPreferences.getUserId();
+      if (userId == null) {
+        print('[MonthlyAnalysis] userId is null — aborting fetch');
+        if (mounted) setState(() => _isLoadingMonthly = false);
+        return;
+      }
+
+      final url = '$baseURL/health-factor/monthly-analysis/$userId';
+      print('[MonthlyAnalysis] Fetching: $url');
+
+      final response = await http
+          .get(Uri.parse(url))
+          .timeout(const Duration(seconds: 10));
+
+      print('[MonthlyAnalysis] Status code: ${response.statusCode}');
+      print('[MonthlyAnalysis] Response body: ${response.body}');
+
+      if (!mounted) return;
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>?;
+        final spo2Label = (decoded?['spo2'] as Map<String, dynamic>?)?['label'];
+        final hrLabel =
+            (decoded?['heartRate'] as Map<String, dynamic>?)?['label'];
+        print('[MonthlyAnalysis] Parsed spo2 label: $spo2Label');
+        print('[MonthlyAnalysis] Parsed heartRate label: $hrLabel');
+        setState(() {
+          _monthlyData = decoded;
+          _isLoadingMonthly = false;
+        });
+        print(
+          '[MonthlyAnalysis] setState done — _isLoadingMonthly=$_isLoadingMonthly',
+        );
+      } else {
+        print('[MonthlyAnalysis] Non-200 response — data not loaded');
+        setState(() => _isLoadingMonthly = false);
+      }
+    } catch (e) {
+      print('[MonthlyAnalysis] Exception: $e');
+      if (mounted) setState(() => _isLoadingMonthly = false);
+    }
+  }
+
+  // Returns colors/text based on label value (okay | warning | bad)
+  Color _labelBgColor(String label) {
+    switch (label) {
+      case 'warning':
+        return const Color(0xFFFEF3C7);
+      case 'bad':
+        return const Color(0xFFFEE2E2);
+      default:
+        return const Color(0xFFD1FAE5); // okay
+    }
+  }
+
+  Color _labelAccentColor(String label) {
+    switch (label) {
+      case 'warning':
+        return const Color(0xFFF59E0B);
+      case 'bad':
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF10B981); // okay
+    }
+  }
+
+  IconData _labelIcon(String label) {
+    switch (label) {
+      case 'warning':
+        return Icons.warning_amber_rounded;
+      case 'bad':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.check_circle_outline; // okay
+    }
+  }
+
+  String _labelBadge(String label) {
+    switch (label) {
+      case 'warning':
+        return 'Warning';
+      case 'bad':
+        return 'Bad';
+      default:
+        return 'Okay';
+    }
+  }
+
+  String _spo2Description(String label) {
+    switch (label) {
+      case 'warning':
+        return 'Your SpO₂ levels are slightly below the optimal range. Keep monitoring and consider reducing exercise intensity if you feel breathless or lightheaded.';
+      case 'bad':
+        return 'Your SpO₂ levels are below the safe threshold. Please stop exercising and consult your healthcare provider immediately before resuming any physical activity.';
+      default:
+        return 'Great news! Your oxygen saturation levels are consistently within the healthy range (≥95%). Keep up your current exercise routine — your body is responding well.';
+    }
+  }
+
+  String _hrDescription(String label) {
+    switch (label) {
+      case 'warning':
+        return 'Your heart rate is showing slight irregularities this month. Consider lowering your exercise intensity and pay close attention to how your body responds during activity.';
+      case 'bad':
+        return 'Your heart rate readings are outside the safe range. Please stop exercising and contact your healthcare provider before continuing any physical activity.';
+      default:
+        return 'Your heart rate is well within the optimal range (60–100 bpm). Your cardiovascular fitness is improving steadily — keep maintaining your regular exercise schedule.';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +299,9 @@ class _MonthlyAnalysisScreenState extends State<MonthlyAnalysisScreen> {
               ),
             )
           : RefreshIndicator(
-              onRefresh: _fetchWeeklyData,
+              onRefresh: () async {
+                await Future.wait([_fetchWeeklyData(), _fetchMonthlyData()]);
+              },
               child: SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 child: Padding(
@@ -798,167 +932,41 @@ class _MonthlyAnalysisScreenState extends State<MonthlyAnalysisScreen> {
                             ),
                             const SizedBox(height: 24),
 
-                            // Expected SpO2 Card
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFD1FAE5),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFF10B981),
-                                  width: 2,
+                            if (_isLoadingMonthly)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF2B7EF8),
+                                  ),
                                 ),
+                              )
+                            else ...[
+                              // ignore: avoid_print
+                              Builder(
+                                builder: (ctx) {
+                                  print(
+                                    '[MonthlyAnalysis] Building cards — spo2Label=$_spo2Label hrLabel=$_hrLabel monthlyData=$_monthlyData',
+                                  );
+                                  return const SizedBox.shrink();
+                                },
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text(
-                                        'Expected SpO₂',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1A3B5D),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFF10B981),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Good',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF10B981),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        Icons.check_circle_outline,
-                                        color: Color(0xFF10B981),
-                                        size: 24,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: const Text(
-                                          'Excellent oxygen saturation. Your SpO₂ levels are within the healthy range (≥95%). Continue your current exercise routine.',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            color: Color(0xFF1A3B5D),
-                                            height: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                              // Expected SpO2 Card
+                              _buildAnalysisCard(
+                                title: 'Expected SpO₂',
+                                label: _spo2Label,
+                                description: _spo2Description(_spo2Label),
                               ),
-                            ),
 
-                            const SizedBox(height: 16),
+                              const SizedBox(height: 16),
 
-                            // Expected Heart Rate Card
-                            Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFD1FAE5),
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: const Color(0xFF10B981),
-                                  width: 2,
-                                ),
+                              // Expected Heart Rate Card
+                              _buildAnalysisCard(
+                                title: 'Expected Heart Rate',
+                                label: _hrLabel,
+                                description: _hrDescription(_hrLabel),
                               ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text(
-                                        'Expected Heart Rate',
-                                        style: TextStyle(
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF1A3B5D),
-                                        ),
-                                      ),
-                                      Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 8,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(
-                                            20,
-                                          ),
-                                          border: Border.all(
-                                            color: const Color(0xFF10B981),
-                                            width: 2,
-                                          ),
-                                        ),
-                                        child: const Text(
-                                          'Good',
-                                          style: TextStyle(
-                                            fontSize: 14,
-                                            fontWeight: FontWeight.bold,
-                                            color: Color(0xFF10B981),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 16),
-                                  Row(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      const Icon(
-                                        Icons.check_circle_outline,
-                                        color: Color(0xFF10B981),
-                                        size: 24,
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: const Text(
-                                          'Excellent cardiovascular response. Heart rate is within optimal range (60-100 bpm). Your fitness is improving steadily.',
-                                          style: TextStyle(
-                                            fontSize: 15,
-                                            color: Color(0xFF1A3B5D),
-                                            height: 1.5,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
+                            ],
                           ],
                         ),
                       ),
@@ -1159,6 +1167,82 @@ class _MonthlyAnalysisScreenState extends State<MonthlyAnalysisScreen> {
                 ),
               ),
             ), // closes RefreshIndicator
+    );
+  }
+
+  Widget _buildAnalysisCard({
+    required String title,
+    required String label,
+    required String description,
+  }) {
+    final bg = _labelBgColor(label);
+    final accent = _labelAccentColor(label);
+    final icon = _labelIcon(label);
+    final badge = _labelBadge(label);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A3B5D),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: accent, width: 2),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: accent, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF1A3B5D),
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 

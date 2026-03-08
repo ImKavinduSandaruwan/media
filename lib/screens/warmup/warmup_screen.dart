@@ -12,7 +12,11 @@ class WarmupScreen extends StatefulWidget {
 class _WarmupScreenState extends State<WarmupScreen> {
   int _currentExercise = 1;
   final int _totalExercises = 8;
-  int _secondsRemaining = 17;
+  // 8 exercises in 300s total: exercises 1-7 = 37s, exercise 8 = 38+1 = 41s (to sum to 300)
+  // 7 * 37 = 259, last = 300 - 259 = 41
+  static const List<int> _exerciseDurations = [37, 37, 37, 37, 37, 37, 37, 41];
+  int _secondsRemaining = 37; // per-exercise countdown
+  int _totalSecondsRemaining = 300; // overall 5-min countdown
   Timer? _timer;
   double? _spo2;
   double? _pulse;
@@ -64,6 +68,7 @@ class _WarmupScreenState extends State<WarmupScreen> {
       if (_secondsRemaining > 0) {
         setState(() {
           _secondsRemaining--;
+          if (_totalSecondsRemaining > 0) _totalSecondsRemaining--;
         });
       } else {
         _timer?.cancel();
@@ -77,7 +82,7 @@ class _WarmupScreenState extends State<WarmupScreen> {
       setState(() {
         _exercises[_currentExercise - 1]['completed'] = true;
         _currentExercise++;
-        _secondsRemaining = 17;
+        _secondsRemaining = _exerciseDurations[_currentExercise - 1];
       });
       _startTimer();
     }
@@ -85,6 +90,12 @@ class _WarmupScreenState extends State<WarmupScreen> {
 
   double get _progress => _currentExercise / _totalExercises;
   int get _overallProgress => (_progress * 100).round();
+
+  String _formatTime(int seconds) {
+    final m = seconds ~/ 60;
+    final s = seconds % 60;
+    return '$m:${s.toString().padLeft(2, '0')}';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -189,13 +200,26 @@ class _WarmupScreenState extends State<WarmupScreen> {
                             color: Color(0xFF1A3B5D),
                           ),
                         ),
-                        Text(
-                          '0:${_secondsRemaining.toString().padLeft(2, '0')}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF6B7280),
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatTime(_secondsRemaining),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                            Text(
+                              'Total: ${_formatTime(_totalSecondsRemaining)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFFF97316),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -233,7 +257,7 @@ class _WarmupScreenState extends State<WarmupScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            '$_secondsRemaining',
+                            _formatTime(_secondsRemaining),
                             style: const TextStyle(
                               fontSize: 48,
                               fontWeight: FontWeight.bold,
@@ -241,7 +265,7 @@ class _WarmupScreenState extends State<WarmupScreen> {
                             ),
                           ),
                           const Text(
-                            'seconds remaining',
+                            'remaining',
                             style: TextStyle(
                               fontSize: 14,
                               color: Color(0xFF78350F),

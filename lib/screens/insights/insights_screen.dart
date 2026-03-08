@@ -122,7 +122,7 @@ class _InsightsScreenState extends State<InsightsScreen> {
             size: 28,
           ),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pushReplacementNamed(context, '/dashboard');
           },
         ),
         title: const Text(

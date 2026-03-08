@@ -42,12 +42,10 @@ class UserPreferences {
     return prefs.getString(_keyRole);
   }
 
-  // Clear user data (for logout)
+  // Clear ALL user data (for logout)
   static Future<void> clearUserData() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyUserId);
-    await prefs.remove(_keyUsername);
-    await prefs.remove(_keyRole);
+    await prefs.clear();
   }
 
   // Check if user is logged in

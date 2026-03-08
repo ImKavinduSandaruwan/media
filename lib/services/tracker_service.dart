@@ -3,7 +3,6 @@ import 'package:app/api.dart';
 import 'package:http/http.dart' as http;
 
 class TrackerService {
-
   Future<bool> saveExtraDose({
     required int patientId,
     required String date,
@@ -159,8 +158,8 @@ class TrackerService {
     try {
       final url = '$baseURL/inr/dose';
 
-      // final payload = {'patientId': patientId, 'inr': inr};
-      final payload = {'patientId': 1, 'inr': inr};
+      final payload = {'patientId': patientId, 'inr': inr};
+      //final payload = {'patientId': 1, 'inr': inr};
 
       print('Calculating INR dose: $url');
       print('Payload: $payload');
@@ -209,6 +208,37 @@ class TrackerService {
       return null;
     } catch (e) {
       print('Error getting behavior analysis: $e');
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getInrByUserAndDate({
+    required int patientId,
+    required String date,
+  }) async {
+    try {
+      final url = '$baseURL/inr/id/date/$patientId/$date';
+
+      print('Getting INR by user and date: $url');
+
+      final response = await http.get(
+        Uri.parse(url),
+        headers: {'Content-Type': 'application/json'},
+      );
+
+      print('INR by date response status: ${response.statusCode}');
+      print('INR by date response body: ${response.body}');
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        // API returns a list — take the first item
+        if (decoded is List && decoded.isNotEmpty) {
+          return decoded.first as Map<String, dynamic>;
+        }
+      }
+      return null;
+    } catch (e) {
+      print('Error getting INR by date: \$e');
       return null;
     }
   }

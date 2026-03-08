@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'post_exercise_monitoring_screen.dart';
+import 'exercise_complete_screen.dart';
 
 class CoolDownScreen extends StatefulWidget {
   final double? spo2;
@@ -27,7 +27,9 @@ class CoolDownScreen extends StatefulWidget {
 class _CoolDownScreenState extends State<CoolDownScreen> {
   int _currentExercise = 1;
   final int _totalExercises = 5;
-  int _secondsRemaining = 60;
+  // 5 exercises in 300s total = 60s each
+  int _secondsRemaining = 60; // per-exercise countdown
+  int _totalSecondsRemaining = 300; // overall 5-min countdown
   Timer? _timer;
 
   final List<Map<String, dynamic>> _exercises = [
@@ -59,6 +61,7 @@ class _CoolDownScreenState extends State<CoolDownScreen> {
       if (_secondsRemaining > 0) {
         setState(() {
           _secondsRemaining--;
+          if (_totalSecondsRemaining > 0) _totalSecondsRemaining--;
         });
       } else {
         _timer?.cancel();
@@ -187,13 +190,26 @@ class _CoolDownScreenState extends State<CoolDownScreen> {
                             color: Color(0xFF6B7280),
                           ),
                         ),
-                        Text(
-                          _formatTime(_secondsRemaining),
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF6B7280),
-                          ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatTime(_secondsRemaining),
+                              style: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                            Text(
+                              'Total: ${_formatTime(_totalSecondsRemaining)}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF2B7EF8),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -237,7 +253,7 @@ class _CoolDownScreenState extends State<CoolDownScreen> {
                           ),
                           const SizedBox(height: 16),
                           Text(
-                            '$_secondsRemaining',
+                            _formatTime(_secondsRemaining),
                             style: const TextStyle(
                               fontSize: 56,
                               fontWeight: FontWeight.bold,
@@ -247,7 +263,7 @@ class _CoolDownScreenState extends State<CoolDownScreen> {
                           ),
                           const SizedBox(height: 8),
                           const Text(
-                            'seconds remaining',
+                            'remaining',
                             style: TextStyle(
                               fontSize: 14,
                               color: Color(0xFF6B7280),
@@ -364,24 +380,19 @@ class _CoolDownScreenState extends State<CoolDownScreen> {
                       child: ElevatedButton.icon(
                         onPressed: () {
                           _timer?.cancel();
-                          print(
-                            '=== Cool Down -> Post-Exercise Monitoring Navigation ===',
-                          );
-                          print(
-                            'Passing vitals: spo2=${widget.spo2}, pulse=${widget.pulse}, healthFactorId=${widget.healthFactorId}',
-                          );
+
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) =>
-                                  PostExerciseMonitoringScreen(
-                                    preExerciseSpo2: widget.spo2,
-                                    preExercisePulse: widget.pulse,
-                                    distanceCovered: widget.distanceCovered,
-                                    timeElapsed: widget.timeElapsed,
-                                    stopReasons: widget.stopReasons,
-                                    healthFactorId: widget.healthFactorId,
-                                  ),
+                              builder: (context) => ExerciseCompleteScreen(
+                                preExerciseSpo2: widget.spo2,
+                                preExercisePulse: widget.pulse,
+                                postExerciseSpo2: widget.spo2,
+                                postExercisePulse: widget.pulse,
+                                distanceCovered: widget.distanceCovered,
+                                timeElapsed: widget.timeElapsed,
+                                stopReasons: widget.stopReasons,
+                              ),
                             ),
                           );
                         },
@@ -395,7 +406,7 @@ class _CoolDownScreenState extends State<CoolDownScreen> {
                         ),
                         icon: const Icon(Icons.favorite, size: 24),
                         label: const Text(
-                          'Continue to Vitals Check',
+                          'Complete Cool Down',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,

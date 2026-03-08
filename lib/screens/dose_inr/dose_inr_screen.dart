@@ -15,7 +15,8 @@ class DoseInrScreen extends StatefulWidget {
 class _DoseInrScreenState extends State<DoseInrScreen> {
   final _trackerService = TrackerService();
   final TextEditingController _inrController = TextEditingController();
-  final double _currentInr = 2.3;
+  double _currentInr = 0.0;
+  bool _isLoadingCurrentInr = true;
   final double _targetMin = 2.0;
   final double _targetMax = 3.0;
 
@@ -27,6 +28,7 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
   int _nextCheckDays = 7;
   bool _isLoading = false;
   bool _isApproved = false;
+  String? _inrError;
 
   // INR Trend data
   List<Map<String, dynamic>> _inrTrendData = [];
@@ -37,6 +39,7 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
   @override
   void initState() {
     super.initState();
+    _loadCurrentInr();
     _loadInrTrendData();
   }
 
@@ -44,6 +47,36 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
   void dispose() {
     _inrController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCurrentInr() async {
+    try {
+      final userId = await UserPreferences.getUserId();
+      if (userId == null) {
+        setState(() => _isLoadingCurrentInr = false);
+        return;
+      }
+
+      final today = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final result = await _trackerService.getInrByUserAndDate(
+        patientId: userId,
+        date: today,
+      );
+
+      if (!mounted) return;
+
+      if (result != null && result['inr'] != null) {
+        setState(() {
+          _currentInr = (result['inr'] as num).toDouble();
+          _isLoadingCurrentInr = false;
+        });
+      } else {
+        setState(() => _isLoadingCurrentInr = false);
+      }
+    } catch (e) {
+      print('Error loading current INR: \$e');
+      if (mounted) setState(() => _isLoadingCurrentInr = false);
+    }
   }
 
   Future<void> _loadInrTrendData() async {
@@ -242,7 +275,7 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
             size: 28,
           ),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pushReplacementNamed(context, '/dashboard');
           },
         ),
         title: const Text(
@@ -289,14 +322,28 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text(
-                            _currentInr.toString(),
-                            style: const TextStyle(
-                              fontSize: 48,
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                          _isLoadingCurrentInr
+                              ? const SizedBox(
+                                  height: 56,
+                                  child: Center(
+                                    child: CircularProgressIndicator(
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        Colors.white,
+                                      ),
+                                      strokeWidth: 3,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  _currentInr > 0
+                                      ? _currentInr.toStringAsFixed(1)
+                                      : '—',
+                                  style: const TextStyle(
+                                    fontSize: 48,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                           const SizedBox(height: 16),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
@@ -373,6 +420,23 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
                         decimal: true,
                         signed: false,
                       ),
+                      onChanged: (value) {
+                        setState(() {
+                          if (value.isEmpty) {
+                            _inrError = null;
+                          } else {
+                            final parsed = double.tryParse(value);
+                            if (parsed == null) {
+                              _inrError = 'Please enter a valid number';
+                            } else if (parsed < 0.5 || parsed > 8.0) {
+                              _inrError =
+                                  'INR value not supported. Must be between 0.5 and 8.0';
+                            } else {
+                              _inrError = null;
+                            }
+                          }
+                        });
+                      },
                       decoration: InputDecoration(
                         hintText: 'e.g., 2.5',
                         hintStyle: const TextStyle(
@@ -380,15 +444,41 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
                           fontSize: 16,
                         ),
                         filled: true,
-                        fillColor: const Color(0xFFF3F4F6),
+                        fillColor: _inrError != null
+                            ? const Color(0xFFFEF2F2)
+                            : const Color(0xFFF3F4F6),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: _inrError != null
+                              ? const BorderSide(
+                                  color: Color(0xFFEF4444),
+                                  width: 1.5,
+                                )
+                              : BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(
+                            color: _inrError != null
+                                ? const Color(0xFFEF4444)
+                                : const Color(0xFF2B7EF8),
+                            width: 1.5,
+                          ),
                         ),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16,
                           vertical: 16,
                         ),
+                        errorText: _inrError,
+                        errorStyle: const TextStyle(
+                          color: Color(0xFFEF4444),
+                          fontSize: 13,
+                        ),
+                        errorMaxLines: 2,
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -396,7 +486,9 @@ class _DoseInrScreenState extends State<DoseInrScreen> {
                       width: double.infinity,
                       height: 56,
                       child: ElevatedButton(
-                        onPressed: _isLoading ? null : _calculateDose,
+                        onPressed: (_isLoading || _inrError != null)
+                            ? null
+                            : _calculateDose,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF2B7EF8),
                           foregroundColor: Colors.white,

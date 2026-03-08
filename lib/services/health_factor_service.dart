@@ -3,7 +3,7 @@ import 'package:app/api.dart';
 import 'package:http/http.dart' as http;
 
 class HealthFactorService {
-  static const String baseUrl = 'http://$baseURL/health-factor';
+  static const String baseUrl = '$baseURL/health-factor';
 
   /// Initialize health factor session
   /// POST: /health-factor/initialize/{userId}

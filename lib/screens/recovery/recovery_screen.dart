@@ -12,16 +12,13 @@ class RecoveryScreen extends StatefulWidget {
 class _RecoveryScreenState extends State<RecoveryScreen> {
   bool _showContactDoctor = false;
   bool _showVitalsScreen = false;
+  bool _isSubmitting = false;
   final TextEditingController _spo2Controller = TextEditingController();
   final TextEditingController _pulseController = TextEditingController();
   String _vitalStatus = '';
-  bool _showVitalWarning = false;
 
   // Store vitals data
-  double? _savedSpo2;
-  double? _savedPulse;
   int? _healthFactorId;
-  bool _isInitializing = false;
 
   @override
   void dispose() {
@@ -39,20 +36,24 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
     }
 
     setState(() {
-      // Save the vitals data
-      _savedSpo2 = spo2;
-      _savedPulse = pulse;
-
       // Check if vitals are in safe range
       // Normal SpO2: 95-100%, Normal resting pulse: 60-100 bpm
       if (spo2 < 95 || pulse < 60 || pulse > 100) {
         _vitalStatus = 'Danger';
-        _showVitalWarning = true;
       } else {
         _vitalStatus = 'Normal';
-        _showVitalWarning = false;
       }
     });
+  }
+
+  bool get _canProceed {
+    final spo2 = _spo2Controller.text.trim();
+    final pulse = _pulseController.text.trim();
+    return spo2.isNotEmpty &&
+        pulse.isNotEmpty &&
+        double.tryParse(spo2) != null &&
+        double.tryParse(pulse) != null &&
+        !_isSubmitting;
   }
 
   @override
@@ -69,7 +70,7 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             size: 28,
           ),
           onPressed: () {
-            Navigator.pop(context);
+            Navigator.pushReplacementNamed(context, '/dashboard');
           },
         ),
         title: Text(
@@ -201,67 +202,37 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: ElevatedButton(
-                              onPressed: _isInitializing
-                                  ? null
-                                  : () async {
-                                      setState(() {
-                                        _isInitializing = true;
-                                      });
+                              onPressed: () async {
+                                // Get user ID
+                                final userId =
+                                    await UserPreferences.getUserId();
 
-                                      // Get user ID
-                                      final userId =
-                                          await UserPreferences.getUserId();
-                                      if (userId == null) {
-                                        if (mounted) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            const SnackBar(
-                                              content: Text(
-                                                'User not logged in',
-                                              ),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                          setState(() {
-                                            _isInitializing = false;
-                                          });
-                                        }
-                                        return;
-                                      }
+                                // Fire API call in background (don't await result)
+                                if (userId != null) {
+                                  HealthFactorService.initializeSession(
+                                    userId,
+                                  ).then((result) {
+                                    if (result['success'] == true) {
+                                      final data = result['data'];
+                                      _healthFactorId = data['id'];
+                                      print(
+                                        'Health factor session initialized: $_healthFactorId',
+                                      );
+                                    } else {
+                                      print(
+                                        'Health factor init failed: ${result['error']}',
+                                      );
+                                    }
+                                  });
+                                }
 
-                                      // Initialize health factor session
-                                      final result =
-                                          await HealthFactorService.initializeSession(
-                                            userId,
-                                          );
-
-                                      if (mounted) {
-                                        setState(() {
-                                          _isInitializing = false;
-                                        });
-
-                                        if (result['success']) {
-                                          final data = result['data'];
-                                          _healthFactorId = data['id'];
-                                          setState(() {
-                                            _showVitalsScreen = true;
-                                          });
-                                        } else {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Text(
-                                                result['error'] ??
-                                                    'Failed to initialize session',
-                                              ),
-                                              backgroundColor: Colors.red,
-                                            ),
-                                          );
-                                        }
-                                      }
-                                    },
+                                // Navigate immediately without waiting for API response
+                                if (mounted) {
+                                  setState(() {
+                                    _showVitalsScreen = true;
+                                  });
+                                }
+                              },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFF10B981),
                                 foregroundColor: Colors.white,
@@ -273,25 +244,13 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: _isInitializing
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                              Colors.white,
-                                            ),
-                                      ),
-                                    )
-                                  : const Text(
-                                      "No, I'm ready",
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                              child: const Text(
+                                "No, I'm ready",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ),
                         ],
@@ -436,7 +395,10 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
           TextField(
             controller: _spo2Controller,
             keyboardType: TextInputType.number,
-            onChanged: (value) => _checkVitals(),
+            onChanged: (value) {
+              _checkVitals();
+              setState(() {});
+            },
             decoration: InputDecoration(
               hintText: 'e.g., 98',
               hintStyle: const TextStyle(
@@ -468,7 +430,10 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
           TextField(
             controller: _pulseController,
             keyboardType: TextInputType.number,
-            onChanged: (value) => _checkVitals(),
+            onChanged: (value) {
+              _checkVitals();
+              setState(() {});
+            },
             decoration: InputDecoration(
               hintText: 'e.g., 72',
               hintStyle: const TextStyle(
@@ -525,120 +490,92 @@ class _RecoveryScreenState extends State<RecoveryScreen> {
             width: double.infinity,
             height: 56,
             child: ElevatedButton.icon(
-              onPressed: () {
-                // Always save vitals before navigation
-                final spo2 = double.tryParse(_spo2Controller.text);
-                final pulse = double.tryParse(_pulseController.text);
+              onPressed: _canProceed
+                  ? () async {
+                      final spo2 = double.tryParse(_spo2Controller.text);
+                      final pulse = double.tryParse(_pulseController.text);
+                      if (spo2 == null || pulse == null) return;
 
-                if (spo2 != null && pulse != null) {
-                  setState(() {
-                    _savedSpo2 = spo2;
-                    _savedPulse = pulse;
-                  });
-                }
+                      setState(() {
+                        _isSubmitting = true;
+                      });
 
-                if (_showVitalWarning && _vitalStatus == 'Danger') {
-                  // Show warning dialog
-                  showDialog(
-                    context: context,
-                    builder: (context) => AlertDialog(
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      title: const Row(
-                        children: [
-                          Icon(
-                            Icons.warning_amber_rounded,
-                            color: Color(0xFFEF4444),
-                            size: 28,
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'Warning: Abnormal Vitals',
-                              style: TextStyle(
-                                color: Color(0xFF1A3B5D),
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
+                      final userId = await UserPreferences.getUserId();
+                      if (userId == null) {
+                        if (mounted) setState(() => _isSubmitting = false);
+                        return;
+                      }
+
+                      final idToUse = _healthFactorId ?? userId;
+
+                      final result =
+                          await HealthFactorService.updateHealthFactor(
+                            id: idToUse,
+                            patientId: userId,
+                            date: DateTime.now().toIso8601String().substring(
+                              0,
+                              10,
                             ),
-                          ),
-                        ],
-                      ),
-                      content: const Text(
-                        'Your vitals are outside safe range. Consider resting and contact your healthcare provider if needed.',
-                        style: TextStyle(
-                          fontSize: 15,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
+                            beforeSpo2: spo2,
+                            beforeHr: pulse,
+                            afterSpo2: spo2,
+                            afterHr: pulse,
+                            run: 0.0,
+                          );
+
+                      if (!mounted) return;
+
+                      // Determine danger/safe from the entered values
+                      final isDanger = spo2 < 95 || pulse < 60 || pulse > 100;
+
+                      if (isDanger) {
+                        setState(() {
+                          _vitalStatus = 'Danger';
+                          _isSubmitting = false;
+                        });
+                      } else {
+                        setState(() => _isSubmitting = false);
+                        final healthFactorId = result['success'] == true
+                            ? (result['data']?['id'] as int?) ?? idToUse
+                            : idToUse;
+                        Navigator.pushNamed(
+                          context,
+                          '/warmup',
+                          arguments: {
+                            'spo2': spo2,
+                            'pulse': pulse,
+                            'healthFactorId': healthFactorId,
                           },
-                          child: const Text(
-                            'Contact Doctor',
-                            style: TextStyle(
-                              color: Color(0xFFEF4444),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            Navigator.pushNamed(
-                              context,
-                              '/warmup',
-                              arguments: {
-                                'spo2': _savedSpo2,
-                                'pulse': _savedPulse,
-                                'healthFactorId': _healthFactorId,
-                              },
-                            );
-                          },
-                          child: const Text(
-                            'Continue Anyway',
-                            style: TextStyle(
-                              color: Color(0xFF2B7EF8),
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                } else {
-                  print('=== Recovery -> Warmup Navigation ===');
-                  print(
-                    'Passing vitals: spo2=$_savedSpo2, pulse=$_savedPulse, healthFactorId=$_healthFactorId',
-                  );
-                  Navigator.pushNamed(
-                    context,
-                    '/warmup',
-                    arguments: {
-                      'spo2': _savedSpo2,
-                      'pulse': _savedPulse,
-                      'healthFactorId': _healthFactorId,
-                    },
-                  );
-                }
-              },
+                        );
+                      }
+                    }
+                  : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2B7EF8),
                 foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFD1D5DB),
+                disabledForegroundColor: const Color(0xFF9CA3AF),
                 elevation: 0,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              icon: const Icon(Icons.directions_run, size: 22),
-              label: const Text(
-                'Continue to Warm-Up',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              icon: _isSubmitting
+                  ? const SizedBox(
+                      width: 22,
+                      height: 22,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2.5,
+                      ),
+                    )
+                  : const Icon(Icons.directions_run, size: 22),
+              label: Text(
+                _isSubmitting ? 'Checking...' : 'Continue to Warm-Up',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ),
           ),

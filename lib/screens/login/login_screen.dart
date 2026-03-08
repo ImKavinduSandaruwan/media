@@ -50,16 +50,24 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      //final response = await _authService.login("leda1@gmail.com", "1234");
+      //final response = await _authService.login("pm@gmail.com", "1234");
 
       if (!mounted) return;
 
       // Check if login was successful
       if (response.isSuccess && response.userId != null) {
         // Save user data locally
+        // await UserPreferences.saveUserData(
+        //   userId: response.userId!,
+        //   username: response.username,
+        //   role: response.role,
+        // );
+
         await UserPreferences.saveUserData(
-          userId: response.userId!,
-          username: response.username,
+          userId: int.parse(
+            response.username!,
+          ), // Converting username string to int for userId
+          username: response.userId?.toString(),
           role: response.role,
         );
 
@@ -283,23 +291,22 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 16),
 
               // Forgot Password
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    // TODO: Navigate to forgot password screen
-                  },
-                  child: const Text(
-                    'Forgot password?',
-                    style: TextStyle(
-                      color: Color(0xFF2B7EF8),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ),
-
+              // Align(
+              //   alignment: Alignment.centerRight,
+              //   child: TextButton(
+              //     onPressed: () {
+              //       // TODO: Navigate to forgot password screen
+              //     },
+              //     child: const Text(
+              //       'Forgot password?',
+              //       style: TextStyle(
+              //         color: Color(0xFF2B7EF8),
+              //         fontSize: 16,
+              //         fontWeight: FontWeight.w600,
+              //       ),
+              //     ),
+              //   ),
+              // ),
               const SizedBox(height: 24),
 
               // Login Button
@@ -343,35 +350,35 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 24),
 
               // Sign Up Link
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      "Don't have an account? ",
-                      style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        // TODO: Navigate to sign up screen
-                      },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: const Text(
-                        'Sign Up',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF2B7EF8),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              // Center(
+              //   child: Row(
+              //     mainAxisAlignment: MainAxisAlignment.center,
+              //     children: [
+              //       const Text(
+              //         "Don't have an account? ",
+              //         style: TextStyle(fontSize: 16, color: Color(0xFF6B7280)),
+              //       ),
+              //       TextButton(
+              //         onPressed: () {
+              //           // TODO: Navigate to sign up screen
+              //         },
+              //         style: TextButton.styleFrom(
+              //           padding: EdgeInsets.zero,
+              //           minimumSize: Size.zero,
+              //           tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              //         ),
+              //         child: const Text(
+              //           'Sign Up',
+              //           style: TextStyle(
+              //             fontSize: 16,
+              //             color: Color(0xFF2B7EF8),
+              //             fontWeight: FontWeight.w600,
+              //           ),
+              //         ),
+              //       ),
+              //     ],
+              //   ),
+              // ),
             ],
           ),
         ),

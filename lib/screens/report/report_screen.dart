@@ -15,6 +15,8 @@ class _ReportScreenState extends State<ReportScreen> {
   bool _isLoading = true;
   String? _error;
   List<Map<String, dynamic>> _reports = [];
+  Map<String, dynamic>? _monthlyData;
+  bool _isLoadingMonthly = true;
 
   //static const String _baseUrl = '$baseURL';
 
@@ -22,6 +24,7 @@ class _ReportScreenState extends State<ReportScreen> {
   void initState() {
     super.initState();
     _fetchReports();
+    _fetchMonthlyData();
   }
 
   Future<void> _fetchReports() async {
@@ -81,6 +84,189 @@ class _ReportScreenState extends State<ReportScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _fetchMonthlyData() async {
+    if (mounted) setState(() => _isLoadingMonthly = true);
+    try {
+      final userId = await UserPreferences.getUserId();
+      if (userId == null) {
+        if (mounted) setState(() => _isLoadingMonthly = false);
+        return;
+      }
+      final response = await http
+          .get(Uri.parse('$baseURL/health-factor/monthly-analysis/$userId'))
+          .timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body) as Map<String, dynamic>?;
+        setState(() {
+          _monthlyData = decoded;
+          _isLoadingMonthly = false;
+        });
+      } else {
+        setState(() => _isLoadingMonthly = false);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoadingMonthly = false);
+    }
+  }
+
+  String get _spo2Label {
+    final spo2 = _monthlyData?['spo2'];
+    if (spo2 == null) return 'okay';
+    return ((spo2 as Map<String, dynamic>)['label'] as String?)
+            ?.toLowerCase() ??
+        'okay';
+  }
+
+  String get _hrLabel {
+    final hr = _monthlyData?['heartRate'];
+    if (hr == null) return 'okay';
+    return ((hr as Map<String, dynamic>)['label'] as String?)?.toLowerCase() ??
+        'okay';
+  }
+
+  Color _labelBgColor(String label) {
+    switch (label) {
+      case 'warning':
+        return const Color(0xFFFEF3C7);
+      case 'bad':
+        return const Color(0xFFFEE2E2);
+      default:
+        return const Color(0xFFD1FAE5);
+    }
+  }
+
+  Color _labelAccentColor(String label) {
+    switch (label) {
+      case 'warning':
+        return const Color(0xFFF59E0B);
+      case 'bad':
+        return const Color(0xFFEF4444);
+      default:
+        return const Color(0xFF10B981);
+    }
+  }
+
+  IconData _labelIcon(String label) {
+    switch (label) {
+      case 'warning':
+        return Icons.warning_amber_rounded;
+      case 'bad':
+        return Icons.cancel_outlined;
+      default:
+        return Icons.check_circle_outline;
+    }
+  }
+
+  String _labelBadge(String label) {
+    switch (label) {
+      case 'warning':
+        return 'Warning';
+      case 'bad':
+        return 'Bad';
+      default:
+        return 'Okay';
+    }
+  }
+
+  String _spo2Description(String label) {
+    switch (label) {
+      case 'warning':
+        return 'Your SpO₂ levels are slightly below the optimal range. Keep monitoring and consider reducing exercise intensity if you feel breathless or lightheaded.';
+      case 'bad':
+        return 'Your SpO₂ levels are below the safe threshold. Please stop exercising and consult your healthcare provider immediately before resuming any physical activity.';
+      default:
+        return 'Great news! Your oxygen saturation levels are consistently within the healthy range (≥95%). Keep up your current exercise routine — your body is responding well.';
+    }
+  }
+
+  String _hrDescription(String label) {
+    switch (label) {
+      case 'warning':
+        return 'Your heart rate is showing slight irregularities this month. Consider lowering your exercise intensity and pay close attention to how your body responds during activity.';
+      case 'bad':
+        return 'Your heart rate readings are outside the safe range. Please stop exercising and contact your healthcare provider before continuing any physical activity.';
+      default:
+        return 'Your heart rate is well within the optimal range (60–100 bpm). Your cardiovascular fitness is improving steadily — keep maintaining your regular exercise schedule.';
+    }
+  }
+
+  Widget _buildAnalysisCard({
+    required String title,
+    required String label,
+    required String description,
+  }) {
+    final bg = _labelBgColor(label);
+    final accent = _labelAccentColor(label);
+    final icon = _labelIcon(label);
+    final badge = _labelBadge(label);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: accent, width: 2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1A3B5D),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: accent, width: 2),
+                ),
+                child: Text(
+                  badge,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: accent,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(icon, color: accent, size: 24),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  description,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF1A3B5D),
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Color _actionColor(String? action) {
@@ -180,7 +366,9 @@ class _ReportScreenState extends State<ReportScreen> {
           : _reports.isEmpty
           ? _buildEmptyState()
           : RefreshIndicator(
-              onRefresh: _fetchReports,
+              onRefresh: () async {
+                await Future.wait([_fetchReports(), _fetchMonthlyData()]);
+              },
               color: const Color(0xFF2B7EF8),
               child: CustomScrollView(
                 slivers: [
@@ -192,6 +380,73 @@ class _ReportScreenState extends State<ReportScreen> {
                         (context, index) =>
                             _buildReportCard(_reports[index], index),
                         childCount: _reports.length,
+                      ),
+                    ),
+                  ),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                      child: Container(
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(
+                                  Icons.trending_up,
+                                  color: Color(0xFF2B7EF8),
+                                  size: 24,
+                                ),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Monthly Analysis',
+                                  style: TextStyle(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF1A3B5D),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              'Based on your current progress trends:',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                            const SizedBox(height: 24),
+                            if (_isLoadingMonthly)
+                              const Center(
+                                child: Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 24),
+                                  child: CircularProgressIndicator(
+                                    color: Color(0xFF2B7EF8),
+                                  ),
+                                ),
+                              )
+                            else ...[
+                              _buildAnalysisCard(
+                                title: 'Expected SpO₂',
+                                label: _spo2Label,
+                                description: _spo2Description(_spo2Label),
+                              ),
+                              const SizedBox(height: 16),
+                              _buildAnalysisCard(
+                                title: 'Expected Heart Rate',
+                                label: _hrLabel,
+                                description: _hrDescription(_hrLabel),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
